@@ -9,7 +9,6 @@ import torch.distributed as dist
 import torch.nn.parallel as dp
 from torch.utils.data.distributed import DistributedSampler
 import torch
-from package.simple_utils.simple_log import printl
 
 
 class DistGeneralSampler(DistributedSampler):
@@ -197,7 +196,7 @@ class Dist(object):
     @staticmethod
     def print(*args, **kwargs):
         if Dist.check():
-            printl(*args, **kwargs)
+            print(*args, **kwargs)
 
     @staticmethod
     def check():
@@ -222,63 +221,3 @@ class Dist(object):
         if Dist.open:
             return dist.get_world_size()
         return 1
-
-
-if __name__ == '__main__':
-    """
-    CUDA_VISIBLE_DEVICES=2,3 torchrun --nnodes=1 --nproc_per_node=2 --rdzv_id=100 --rdzv_backend=c10d --rdzv_endpoint=127.0.0.1:10002 core/opt_rm/dist_utils.py
-    """
-    from tqdm import tqdm
-
-    class TempDataset(object):
-        def __init__(self):
-            self.data = [torch.arange(13).float().reshape(-1, 1) for _ in range(3)]
-            self.e_data = [{"base_tid": i // 3 - 1} for i in range(13)]
-
-        def __getitem__(self, idx):
-            return *[d[idx] for d in self.data], self.e_data[idx]
-
-        def __len__(self):
-            return len(self.e_data)
-    Dist.open = False
-    Dist.setup()
-    device = Dist.get_rank()
-
-    dataset = TempDataset()
-    model = torch.nn.Linear(1, 1).to(device)
-    model = Dist.model(model)
-
-    from core.opt_rm.sampler import TemplateTripletSampler, OptGroupSampler
-    sampler = TemplateTripletSampler(dataset, sampler_n=2, num_instances=3)
-    sampler = Dist.sampler(sampler, dataset, log=True, sub_sample_step=3)
-    data_loader = torch.utils.data.DataLoader(dataset, 2*3, num_workers=0, sampler=sampler, drop_last=True)
-    print(Dist.get_sampler(data_loader).get_tids)
-
-    # sampler = OptGroupSampler(dataset)
-    # # sampler = Dist.sampler(sampler, dataset, shuffle=False, log=True, repeat_for_gpu=False)  # use Dist.gather cause keep waiting problem
-    # sampler = Dist.sampler(sampler, dataset, shuffle=False, log=True, repeat_for_gpu=True)
-    # data_loader = torch.utils.data.DataLoader(dataset, 2*3, num_workers=0, sampler=sampler)
-
-    # sampler = Dist.sampler(None, dataset, shuffle=False, drop_last=False, log=True)
-    # data_loader = torch.utils.data.DataLoader(dataset, 2*3, num_workers=0, sampler=sampler)
-
-    optimizer = torch.optim.SGD(model.parameters(), 0.1)
-
-    model.train()
-    print(Dist.get_rank(), ":", "first epoch ------------------------------")
-    Dist.sync()
-    l = 0
-    for data, _, _, _ in tqdm(data_loader):
-        print(Dist.get_rank(), ":", data.T)
-        data = data.to(device)
-        optimizer.zero_grad()
-        x = model(data)
-        # x = Dist.gather(x)
-        x.sum().backward()
-        optimizer.step()
-        print(Dist.get_rank(), ":", x)
-        l+=len(data)
-    Dist.sync()
-    print(Dist.get_rank(), ":", l)
-
-    print(Dist.get_rank(), ":", "second epoch ------------------------------")

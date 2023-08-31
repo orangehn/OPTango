@@ -5,11 +5,14 @@ from collections import defaultdict
 import torch
 
 from core.opt_rm.dist_utils import Dist
-from core.opt_rm.sampler import OptGroupSampler
-from core.opt_rm.loss import cosine_similarity
 from tqdm import tqdm
 
-from package.simple_utils.simple_log import printl
+from third.simple_utils.simple_log import printl
+
+
+def cosine_similarity(v1, v2):
+    v2 = v2.to(v1.device)
+    return (v1 @ v2.T / (v1.norm(dim=-1)[:, None] * v2.norm(dim=-1)[None, :]))
 
 
 class OptGroupManager(object):
@@ -48,13 +51,6 @@ class OptGroupManager(object):
         printl(f'[opt_group] {no_template_count} fids have no templates')
 
         self.feats_cache = {}
-
-        # # for re-cal tid
-        # opt_group_sampler = Dist.sampler(OptGroupSampler(dataset), dataset)
-        #
-        # # 保证每条数据有且仅有一次访问
-        # self.iter_data_loader = torch.utils.data.DataLoader(
-        #     dataset, batch_size, num_workers=0, collate_fn=dataset.collate_fn, sampler=opt_group_sampler)
 
     def extract_feat(self):
         self.model.eval()

@@ -6,91 +6,11 @@ import torch
 import torch.nn as nn
 from core.opt_rm.opt_group import OptGroupManager
 
-from core.asm2vec.datatype import Tokens
-from core.opt_cls.model import FuncEmbedding
 from core.opt_rm.dist_utils import Dist
-from package.embedding_plus.CombineEmbedding import CombineEmbedding
-from core.opt_rm.loss import TripletLoss
-from package.simple_utils.simple_log import printl
-from core.opt_rm.const_data import ConstDataBlock, StrEmbedding, ConstStrEmbedding
+from third.simple_utils.simple_log import printl
+from core.opt_rm.const_data import ConstDataBlock
 from core.opt_rm.utils import init_weight
 from core.opt_rm.bin_bert_model import BinBertModel, BertTokenizer
-
-
-def load_tokens(path, device='cpu'):
-    import core.asm2vec as asm2vec
-    checkpoint = torch.load(path, map_location=device)
-    tokens = Tokens()
-    tokens.load_state_dict(checkpoint['tokens'])
-    return tokens
-
-
-class OptRemoveModel(nn.Module):
-    def __init__(self, tokens, embedding_dim, bsc_feat_dim, feat_source, **func_args):
-        super().__init__()
-        token_embeddings = CombineEmbedding(
-            len(tokens.atom_name_to_atom_index) + 1, tokens.index_to_atom_index, embedding_dim,
-            _weight=torch.randn(len(tokens.atom_name_to_atom_index) + 1, embedding_dim)
-        )
-        self.func_embeddings = FuncEmbedding(token_embeddings, **func_args)
-        func_embedding_dim = embedding_dim * 2
-
-        self.other_loss = 0.
-        self.fc = nn.Linear(func_embedding_dim, bsc_feat_dim)
-        self.loss_func = TripletLoss(margin=None, mid_weight=0.)
-
-        self.post_block = nn.Sequential(
-            nn.ReLU(),
-            nn.Linear(bsc_feat_dim, bsc_feat_dim//2),
-            nn.Tanh(),
-            nn.Linear(bsc_feat_dim//2, bsc_feat_dim)
-        )
-
-        self.feat_source = [e.strip() for e in feat_source.split(",") if len(e.strip()) > 0]
-        for fs in self.feat_source:
-            assert fs in ["bsc", "opt_rm"], (feat_source, fs)
-
-    def init_weight(self):
-        # for param in self.parameters():
-        #     nn.init.normal_(param, std=0.01)  # std too big will cause inf and nan
-        self.func_embeddings.init_weight()   #
-        init_weight(self)
-
-    def combine_feat(self, fn_embedding, bsc_feat):
-        w1 = 1 if "opt_rm" in self.feat_source else 0
-        w2 = 1 if "bsc" in self.feat_source else 0
-        return w1 * fn_embedding + w2 * bsc_feat
-
-    def forward(self, bsc_feat, asm_tokens, graph_dict, infos=None, fids=None, tids=None, coarse_labels=None):
-        if self.training:
-            return self.loss(bsc_feat, asm_tokens, graph_dict, infos, fids, tids, coarse_labels)
-        fn_embedding, _, _, _ = self.func_embeddings(asm_tokens, graph_dict)
-        # do some solving, add a fc
-        fn_embedding = self.fc(fn_embedding)
-        feat = self.combine_feat(fn_embedding, bsc_feat)
-        return self.post_block(feat)
-
-    def forward2(self, bsc_feat, asm_tokens, graph_dict, infos=None):
-        fn_embedding, _, _, _ = self.func_embeddings(asm_tokens, graph_dict)
-        # do some solving, add a fc
-        fn_embedding = self.fc(torch.relu(fn_embedding))
-        feat = self.combine_feat(fn_embedding, bsc_feat)
-        return self.post_block(feat), fn_embedding, bsc_feat
-
-    def loss(self, bsc_feat, asm_tokens, graph_dict, infos, fids, tids, coarse_labels):
-        batch_feat, f1, f2 = self.forward2(bsc_feat, asm_tokens, graph_dict, infos)
-        loss, dist_ap, dist_am, dist_an = self.loss_func(batch_feat, fids, tids, normalize_feature=True)
-        norm1, norm2 = torch.norm(f1, p=2, dim=-1).mean(), torch.norm(f2, p=2, dim=-1).mean()
-        return {"tri_loss": loss, "dist_ap": dist_ap.mean(), "dist_am": dist_am.mean(), "dist_an": dist_an.mean(),
-                "norm1": norm1, "norm2": norm2}
-
-    # def loss(self, anchor, pos, neg, margin=1.0):
-    #     anchor_feat = self(*anchor)  # (num_func, feat_dim)
-    #     pos_feat = self(*pos)  # (num_func, )
-    #     neg_feat = self(*neg)
-    #
-    #     loss = - cosine_similarity(anchor_feat, pos_feat) + cosine_similarity(anchor_feat, neg_feat) + margin
-    #     return (loss > 0).float() * loss
 
 
 class DynamicFc(nn.Module):
@@ -274,9 +194,9 @@ class OptRemoveBertModel(nn.Module):
 
         if 'bert' in self.sub_module_names:
             if init_method in ['scratch', 'j-pretrain']:
-                jTrans_path = os.path.join(os.path.split(__file__)[0], "../../projects/jTrans")
-                self.tokenizer = BertTokenizer.from_pretrained(os.path.join(jTrans_path, "./jtrans_tokenizer/"))
-                init_path = os.path.join(jTrans_path, "./models/jTrans-pretrain")
+                j_path = os.path.join(os.path.split(__file__)[0], "../../model_weight")
+                self.tokenizer = BertTokenizer.from_pretrained(os.path.join(j_path, "./tokenizer/"))
+                init_path = os.path.join(j_path, "./pretrain/")
                 self.bert = BinBertModel.from_pretrained(init_path)
             else:
                 init_path = init_method   # "bert-base-uncased"
@@ -303,8 +223,6 @@ class OptRemoveBertModel(nn.Module):
             self.const_block = ConstDataBlock(asm_str_src, **const_data_kwargs)
         else:
             self.with_const_data = False
-
-        self.loss_func = TripletLoss(margin=None, mid_weight=0.)
 
         # obase classifier
         if obase_cls_kwargs is not None:
@@ -541,98 +459,6 @@ class OptRemoveBertModel(nn.Module):
             f = self.post_block(f)
         return f
 
-    def loss(self, bsc_feat, asm_tokens, graph_dict, infos, fids, tids, coarse_label):
-        norm = {}
-        if bsc_feat is not None:
-            norm['norm_b'] = bsc_feat.norm(p=2, dim=-1).mean()
-        fn_embeddings = self.pre_forward(bsc_feat.device, asm_tokens, graph_dict, infos)    # obtain fn_embedding
-        if fn_embeddings is not None:
-            norm['norm_f'] = fn_embeddings.norm(p=2, dim=-1).mean()
-        _, loss_group = self.group_pred_forward(bsc_feat, fn_embeddings, infos, tids)
-        bsc_feat, fn_embeddings, other_out = self.const_data_forward(bsc_feat, fn_embeddings, infos)  # with const_data
-
-        batch_feat = self.post_forward(bsc_feat, fn_embeddings)                             # perform option remove
-        loss, dist_ap, dist_am, dist_an = self.loss_func(batch_feat, fids, tids, normalize_feature=True)
-        loss_infos = {"tri_loss": loss, "dist_ap": dist_ap.mean(), "dist_am": dist_am.mean(),
-                      "dist_an": dist_an.mean()}
-        loss_infos.update(loss_group)
-
-        # norm1, norm2 = torch.norm(f1, p=2, dim=-1).mean(), torch.norm(f2, p=2, dim=-1).mean()
-        if 'const_f' in other_out and isinstance(other_out['const_f'], torch.Tensor):
-            norm['norm_c'] = other_out['const_f'].norm(p=2, dim=-1).mean()
-        norm['norm'] = torch.norm(batch_feat, p=2, dim=1).mean()
-        loss_infos.update(norm)
-
-        if self.obase_classifier is not None:
-            obase_loss = self.obase_classifier.loss(fn_embeddings, tids, coarse_label)
-            loss_infos.update(obase_loss)
-        return loss_infos
-
 
 def build_model(model_class, *args, **kwargs):
     return eval(model_class)(*args, **kwargs)
-
-
-if __name__ == '__main__':
-    device = torch.device('cuda:0')
-
-    model = build_model("OptRemoveBertModel", init_method='j-pretrain', freeze_cnt=10, freeze_emb=True,
-                        # feat_source='opt_rm',
-                        feat_source='bsc',
-                        sub_modules='group_pred',
-                        # with_data_embed_in_bert=True,
-                        # with_const_data=True, only_const_data_module=True,
-                        # const_data_kwargs=dict(out_type='const_emb:add'),
-                        ).to(device)
-    model.init_weight()
-    print(model)
-
-    from core.opt_rm.dataset import _create_unit_test_dataset
-    tokens, dataset, data_loader = _create_unit_test_dataset(device)
-
-    optimizer = torch.optim.Adam(model.get_param_lr_setting(0.01, 5e-4))
-    tids = None
-
-    # model = build_model("OptRemoveBertModel", obase_cls_kwargs=dict()).to(device)
-    print([p.mean() for name, p in model.named_parameters() if '_embeddings' in name])
-    print([p.mean() for name, p in model.named_parameters() if '11' in name])
-    for idx, bsc_feat, fids, infos, asm_path, asm_token_idx, label, coarse_label, x_weight, graph_dict, asm_info in data_loader:
-        graph_dict = {key: graph_dict[key].to(device) for key in graph_dict}
-        bsc_feat = bsc_feat.to(device)
-        asm_token_idx = asm_token_idx.to(device)
-        coarse_label = coarse_label.to(device)
-        model.eval()
-        model(bsc_feat, asm_token_idx, graph_dict, infos)
-        model.train()
-        fids = fids.to(device)
-        tids = torch.zeros(len(fids)).to(device)
-        losses = model(bsc_feat, asm_token_idx, graph_dict, infos, fids, tids, coarse_label)
-        print(losses)
-        loss = sum([v for key, v in losses.items() if ('_loss' in key)])
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        model.eval()
-        res = model(bsc_feat, asm_token_idx, graph_dict, infos, fids, tids, coarse_label)
-        print(res)
-        model.train()
-        break
-    print([p.mean() for name, p in model.named_parameters() if '_embeddings' in name])
-    print([p.mean() for name, p in model.named_parameters() if '11' in name])
-
-    graph = dict(with_cfg_cdg=True)
-    model = OptRemoveModel(tokens, 100, 768, "bsc,opt_rm", graph=graph).to(device)
-    # for epoch in range(num_epochs):
-    for idx, bsc_feat, fids, infos, asm_path, asm_token_idx, label, coarse_label, x_weight, graph_dict, asm_info in data_loader:
-        graph_dict = {key: graph_dict[key].to(device) for key in graph_dict}
-        bsc_feat = bsc_feat.to(device)
-        asm_token_idx = asm_token_idx.to(device)
-        coarse_label = coarse_label.to(device)
-        model.eval()
-        model(bsc_feat, asm_token_idx, graph_dict, infos)
-        model.train()
-        tids = None
-        losses = model(bsc_feat, asm_token_idx, graph_dict, infos, fids, tids, coarse_label)
-        print(losses)
-        break

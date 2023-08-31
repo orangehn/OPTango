@@ -14,7 +14,7 @@ class BinBertModel(BertModel):
     def __init__(self, config, add_pooling_layer=True):
         super().__init__(config)
         self.config = config
-        # if 'jtrans' in config.name_or_path.lower():
+        # if 'jTrans' in config.name_or_path.lower():
         self.embeddings.position_embeddings = self.embeddings.word_embeddings
         self.data_embeddings = None
 

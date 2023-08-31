@@ -188,7 +188,7 @@ class ConstDataBlock(nn.Module):
             raise ValueError
 
 
-from projects.jTrans.data_func import gen_funcstr
+from third.jTrans.data_func import gen_funcstr
 from math import ceil, floor
 import pickle
 import difflib
