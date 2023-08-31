@@ -9,7 +9,7 @@ This project consists of four subdirectories(model_weight, data, core, third) an
   
  -- data: which contains a small example data(preprocessed by IDA pro 7.5+) for validating OPTango's general functionality
 
- -- core and third: which contain core functional code
+ -- core and third: which contain core functional code and script for preprocessing data 
 
  -- how_to_use.py: a script for validating OPTango's general functionality, such as extracting function features \
  and performing similarity matching between functions.
