@@ -19,7 +19,7 @@ OPTango: Multi-central Representation Learning against Innumerable Compiler Opti
 
 [Model Weight (Google Driver)](https://1drv.ms/u/s!AnDeWkMIPHF2aqmD_b9Ecxy7oKk?e=fpW6YN)
 
-1. download OPTBinary(data/data-bsca.zip) and unzip as data/data-bsca/ (not need if you just want to use OPTango)
+1. download OPTBinary(bin.zip) and unzip as data/data-bsca/bin (not need if you just want to use OPTango)
 2. download model_weight.zip and unzip as model_weight/
 
 ## Getting Started:
