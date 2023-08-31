@@ -3,15 +3,13 @@ OPTango: Multi-central Representation Learning against Innumerable Compiler Opti
 
 ----------------------------------------------------------------------------------------------
 ## Description
-This project consists of five subdirectories(model_weight, data, core, third, analysis) and one Python file(how_to_use.py).
+This project consists of four subdirectories(model_weight, data, core, third) and one Python file(how_to_use.py).
 
  -- model_weight: which contains the model and parameters of OPTango
   
  -- data: which contains a small example data(preprocessed by IDA pro 7.5+) for validating OPTango's general functionality
 
  -- core and third: which contain core functional code
-
- -- analysis: which contains scripts and data necessary for reproducing the tables of OPTango in the research paper.
 
  -- how_to_use.py: a script for validating OPTango's general functionality, such as extracting function features \
  and performing similarity matching between functions.
