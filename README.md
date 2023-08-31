@@ -71,7 +71,7 @@ Traceback (most recent call last):
     model = FullModel("cuda:0", with_gp=eval(args.with_gp))
   File "how_to_use.py", line 98, in __init__
     model.load_state_dict(checkpoint["bert"])
-  File "/home/hng/miniconda3/envs/optango2/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1604, in load_state_dict
+  File "/home/env_name/miniconda3/envs/optango2/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1604, in load_state_dict
     raise RuntimeError('Error(s) in loading state_dict for {}:\n\t{}'.format(
 RuntimeError: Error(s) in loading state_dict for OptRemoveBertModel:
         Unexpected key(s) in state_dict: "bert.embeddings.position_ids".
