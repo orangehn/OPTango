@@ -9,6 +9,7 @@ OPTango: Multi-central Representation Learning against Innumerable Compiler Opti
 - Python 3.8
 - PyTorch 1.12.0
 - CUDA 11.3
+- IDA pro 7.5+ (only used for dataset processing)
 
 
 ## where is data and model weight?
@@ -19,7 +20,8 @@ OPTango: Multi-central Representation Learning against Innumerable Compiler Opti
 
 [Model Weight (Google Driver)](https://1drv.ms/u/s!AnDeWkMIPHF2aqmD_b9Ecxy7oKk?e=fpW6YN)
 
-1. download OPTBinary(bin.zip) and unzip as data/data-bsca/bin (not need if you just want to use OPTango)
+1. download OPTBinary(bin.zip) and unzip as data/data-bsca/bin (not need if you just want to use OPTango, refer to 
+   third/jTrans/datautils/README.md for preprocessing data)
 2. download model_weight.zip and unzip as model_weight/
 
 ## Getting Started:
