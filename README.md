@@ -2,6 +2,20 @@
 OPTango: Multi-central Representation Learning against Innumerable Compiler Optimization for Binary Diffing 
 
 ----------------------------------------------------------------------------------------------
+## Description
+This project consists of five subdirectories(model_weight, data, core, third, analysis) and one Python file(how_to_use.py).
+
+ -- model_weight: which contains the model and parameters of OPTango
+  
+ -- data: which contains a small example data(preprocessed by IDA pro 7.5+) for validating OPTango's general functionality
+
+ -- core and third: which contain core functional code
+
+ -- analysis: which contains scripts and data necessary for reproducing the tables of OPTango in the research paper.
+
+ -- how_to_use.py: a script for validating OPTango's general functionality, such as extracting function features \
+ and performing similarity matching between functions.
+
 
 ## Environment Setup:
 
@@ -20,8 +34,7 @@ OPTango: Multi-central Representation Learning against Innumerable Compiler Opti
 
 [Model Weight (Google Driver)](https://1drv.ms/u/s!AnDeWkMIPHF2aqmD_b9Ecxy7oKk?e=fpW6YN)
 
-1. download OPTBinary(bin.zip) and unzip as data/data-bsca/bin (not need if you just want to use OPTango, refer to 
-   third/jTrans/datautils/README.md for preprocessing data)
+1. download OPTBinary(bin.zip) and unzip as data/data-bsca/bin (not need if you just want to use OPTango)
 2. download model_weight.zip and unzip as model_weight/
 
 ## Getting Started:
@@ -37,7 +50,7 @@ conda install pytorch==1.12.0 torchvision==0.13.0 torchaudio==0.12.0 cudatoolkit
 pip install -r requirements.txt
 ```
 
-c. Feature extracting and similarity matching
+c. Feature extracting and similarity matching with the OpenSSL demo data:
 ```shell
 python how_to_use.py
 ```
@@ -46,6 +59,8 @@ d. Matching result
 The following diagram illustrates the cosine similarity between the query function "main" and nine index functions using OPTango:
 
 ![img.png](img.png)
+
+f. refer to third/jTrans/datautils/README.md for preprocessing OPTBinary or your own data.
 
 
 ## Normal issue
